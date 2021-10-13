@@ -30,6 +30,7 @@ import (
 	big_numbers "github.com/limechain/hedera-eth-bridge-validator/app/helper/big-numbers"
 	hederahelper "github.com/limechain/hedera-eth-bridge-validator/app/helper/hedera"
 	"github.com/limechain/hedera-eth-bridge-validator/app/helper/memo"
+	"github.com/limechain/hedera-eth-bridge-validator/app/helper/router"
 	"github.com/limechain/hedera-eth-bridge-validator/app/helper/sync"
 	"github.com/limechain/hedera-eth-bridge-validator/app/model/message"
 	model "github.com/limechain/hedera-eth-bridge-validator/app/model/transfer"
@@ -483,8 +484,29 @@ func (ts *Service) TransferData(txId string) (service.TransferData, error) {
 		signatures = append(signatures, m.Signature)
 	}
 
-	requiredSigCount := len(ts.contractServices[t.TargetChainID].GetMembers())/2 + 1
-	reachedMajority := len(t.Messages) >= requiredSigCount
+	membersCount := int64(len(ts.contractServices[t.TargetChainID].GetMembers()))
+	membersPercentage, err := ts.contractServices[t.TargetChainID].MembersPercentage()
+	if err != nil {
+		ts.logger.Errorf("[%s] - Failed to get members percentage. Error: [%s]", t.TransactionID, err)
+		return service.TransferData{}, err
+	}
+
+	membersPrecision, err := ts.contractServices[t.TargetChainID].MembersPrecision()
+	if err != nil {
+		ts.logger.Errorf("[%s] - Failed to get members precision. Error [%s]", t.TransactionID, err)
+		return service.TransferData{}, err
+	}
+
+	reachedMajority, err := router.HasEnoughSignatures(
+		membersCount,
+		membersPercentage.Int64(),
+		membersPrecision.Int64(),
+		int64(len(t.Messages)))
+
+	if err != nil {
+		ts.logger.Errorf("[%s] - Failed to check required signatures. Error [%s]", t.TransactionID, err)
+		return service.TransferData{}, err
+	}
 
 	return service.TransferData{
 		Recipient:     t.Receiver,

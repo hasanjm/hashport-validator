@@ -71,6 +71,16 @@ func (bsc *Service) IsMember(address string) bool {
 	return false
 }
 
+// MembersPercentage returns the current percentage for minimum amount of members signatures
+func (bsc *Service) MembersPercentage() (*big.Int, error) {
+	return bsc.contract.MembersPercentage(nil)
+}
+
+// MembersPrecision returns the current precision for minimum amount of members signatures
+func (bsc *Service) MembersPrecision() (*big.Int, error) {
+	return bsc.contract.MembersPrecision(nil)
+}
+
 // ParseBurnLog parses a general typed log to a RouterBurn event
 func (bsc *Service) ParseBurnLog(log types.Log) (*router.RouterBurn, error) {
 	return bsc.contract.ParseBurn(log)

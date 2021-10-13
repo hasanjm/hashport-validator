@@ -21,6 +21,7 @@ import (
 	"github.com/hashgraph/hedera-sdk-go/v2"
 	"github.com/limechain/hedera-eth-bridge-validator/app/domain/repository"
 	"github.com/limechain/hedera-eth-bridge-validator/app/domain/service"
+	"github.com/limechain/hedera-eth-bridge-validator/app/helper/router"
 	"github.com/limechain/hedera-eth-bridge-validator/app/model/message"
 	"github.com/limechain/hedera-eth-bridge-validator/config"
 	log "github.com/sirupsen/logrus"
@@ -85,7 +86,7 @@ func (cmh Handler) handleSignatureMessage(tsm message.Message) {
 
 	majorityReached, err := cmh.checkMajority(tsm.TransferID, int64(tsm.TargetChainId))
 	if err != nil {
-		cmh.logger.Errorf("[%s] - Could not determine whether majority was reached", tsm.TransferID)
+		cmh.logger.Errorf("[%s] - Could not determine whether majority was reached. Error [%s]", tsm.TransferID, err)
 		return
 	}
 
@@ -104,10 +105,24 @@ func (cmh *Handler) checkMajority(transferID string, targetChainId int64) (major
 		return false, err
 	}
 
-	membersCount := len(cmh.contracts[targetChainId].GetMembers())
-	requiredSigCount := membersCount/2 + 1
+	membersCount := int64(len(cmh.contracts[targetChainId].GetMembers()))
+	membersPercentage, err := cmh.contracts[targetChainId].MembersPercentage()
+	if err != nil {
+		cmh.logger.Errorf("[%s] - Failed to get members percentage. Error: [%s]", transferID, err)
+		return false, err
+	}
+
+	membersPrecision, err := cmh.contracts[targetChainId].MembersPrecision()
+	if err != nil {
+		cmh.logger.Errorf("[%s] - Failed to get members precision. Error [%s]", transferID, err)
+		return false, err
+	}
+
 	cmh.logger.Infof("[%s] - Collected [%d/%d] Signatures", transferID, len(signatureMessages), membersCount)
 
-	return len(signatureMessages) >= requiredSigCount,
-		nil
+	return router.HasEnoughSignatures(
+		membersCount,
+		membersPercentage.Int64(),
+		membersPrecision.Int64(),
+		int64(len(signatureMessages)))
 }

@@ -28,6 +28,7 @@ import (
 	"github.com/limechain/hedera-eth-bridge-validator/test/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"math/big"
 	"testing"
 )
 
@@ -91,24 +92,42 @@ func Test_HandleSignatureMessage_ProcessSignatureFails(t *testing.T) {
 	mocks.MBridgeContractService.AssertNotCalled(t, "GetMembers")
 }
 
-func Test_HandleSignatureMessage_MajorityReached(t *testing.T) {
-	setup()
-	mocks.MMessageService.On("SanityCheckSignature", tsm).Return(true, nil)
-	mocks.MMessageService.On("ProcessSignature", tsm).Return(nil)
-	mocks.MMessageRepository.On("Get", tsm.TransferID).Return([]entity.Message{{}, {}, {}}, nil)
-	mocks.MBridgeContractService.On("GetMembers").Return([]string{"", "", ""})
-	mocks.MTransferRepository.On("UpdateStatusCompleted", tsm.TransferID).Return(nil)
-	h.handleSignatureMessage(tsm)
-}
-
 func Test_Handle(t *testing.T) {
 	setup()
 	mocks.MMessageService.On("SanityCheckSignature", tsm).Return(true, nil)
 	mocks.MMessageService.On("ProcessSignature", tsm).Return(nil)
 	mocks.MMessageRepository.On("Get", tsm.TransferID).Return([]entity.Message{{}, {}, {}}, nil)
 	mocks.MBridgeContractService.On("GetMembers").Return([]string{"", "", ""})
+	mocks.MBridgeContractService.On("MembersPercentage").Return(big.NewInt(51), nil)
+	mocks.MBridgeContractService.On("MembersPrecision").Return(big.NewInt(100), nil)
 	mocks.MTransferRepository.On("UpdateStatusCompleted", tsm.TransferID).Return(nil)
 	h.Handle(&tsm)
+}
+
+func Test_HandleSignatureMessage_GetMembersPercentage_Fails(t *testing.T) {
+	setup()
+	mocks.MMessageService.On("SanityCheckSignature", tsm).Return(true, nil)
+	mocks.MMessageService.On("ProcessSignature", tsm).Return(nil)
+	mocks.MMessageRepository.On("Get", tsm.TransferID).Return([]entity.Message{{}, {}, {}}, nil)
+	mocks.MBridgeContractService.On("GetMembers").Return([]string{"", "", ""})
+	mocks.MBridgeContractService.On("MembersPercentage").Return(nil, errors.New("some-error"))
+
+	h.handleSignatureMessage(tsm)
+	mocks.MBridgeContractService.AssertNotCalled(t, "MembersPrecision")
+	mocks.MTransferRepository.AssertNotCalled(t, "UpdateStatusCompleted")
+}
+
+func Test_HandleSignatureMessage_GetMembersPrecision_Fails(t *testing.T) {
+	setup()
+	mocks.MMessageService.On("SanityCheckSignature", tsm).Return(true, nil)
+	mocks.MMessageService.On("ProcessSignature", tsm).Return(nil)
+	mocks.MMessageRepository.On("Get", tsm.TransferID).Return([]entity.Message{{}, {}, {}}, nil)
+	mocks.MBridgeContractService.On("GetMembers").Return([]string{"", "", ""})
+	mocks.MBridgeContractService.On("MembersPercentage").Return(big.NewInt(51), nil)
+	mocks.MBridgeContractService.On("MembersPrecision").Return(nil, errors.New("some-error"))
+
+	h.handleSignatureMessage(tsm)
+	mocks.MTransferRepository.AssertNotCalled(t, "UpdateStatusCompleted")
 }
 
 func Test_HandleSignatureMessage_UpdateStatusCompleted_Fails(t *testing.T) {
@@ -117,6 +136,8 @@ func Test_HandleSignatureMessage_UpdateStatusCompleted_Fails(t *testing.T) {
 	mocks.MMessageService.On("ProcessSignature", tsm).Return(nil)
 	mocks.MMessageRepository.On("Get", tsm.TransferID).Return([]entity.Message{{}, {}, {}}, nil)
 	mocks.MBridgeContractService.On("GetMembers").Return([]string{"", "", ""})
+	mocks.MBridgeContractService.On("MembersPercentage").Return(big.NewInt(51), nil)
+	mocks.MBridgeContractService.On("MembersPrecision").Return(big.NewInt(100), nil)
 	mocks.MTransferRepository.On("UpdateStatusCompleted", tsm.TransferID).Return(errors.New("some-error"))
 	h.handleSignatureMessage(tsm)
 }

@@ -79,6 +79,22 @@ func (m *MockBridgeContract) IsMember(address string) bool {
 	panic("implement me")
 }
 
+func (m *MockBridgeContract) MembersPercentage() (*big.Int, error) {
+	args := m.Called()
+	if args[0] == nil {
+		return nil, args.Get(1).(error)
+	}
+	return args.Get(0).(*big.Int), nil
+}
+
+func (m *MockBridgeContract) MembersPrecision() (*big.Int, error) {
+	args := m.Called()
+	if args[0] == nil {
+		return nil, args.Get(1).(error)
+	}
+	return args.Get(0).(*big.Int), nil
+}
+
 func (m *MockBridgeContract) WatchBurnEventLogs(opts *bind.WatchOpts, sink chan<- *router.RouterBurn) (event.Subscription, error) {
 	args := m.Called(opts, sink)
 	if args[0] == nil && args[1] == nil {

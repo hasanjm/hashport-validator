@@ -36,6 +36,10 @@ type Contracts interface {
 	GetClient() client.Core
 	// IsMember returns true/false depending on whether the provided address is a Bridge member or not
 	IsMember(address string) bool
+	// MembersPercentage returns the current percentage for minimum amount of members signatures
+	MembersPercentage() (*big.Int, error)
+	// MembersPrecision returns the current precision for minimum amount of members signatures
+	MembersPrecision() (*big.Int, error)
 	// ParseBurnLog parses a general typed log to a RouterBurn event
 	ParseBurnLog(log types.Log) (*abi.RouterBurn, error)
 	// ParseLockLog parses a general typed log to a RouterLock event
